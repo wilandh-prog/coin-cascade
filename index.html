@@ -43,7 +43,7 @@ const BUCKET_MULTS = [5,1,2,1,10,1,2,1,5];
 const BUCKET_COLORS = ['#9c27b0','#607d8b','#2196f3','#607d8b','#ffd700','#607d8b','#2196f3','#607d8b','#9c27b0'];
 
 let SHOP_X = 1090, SHOP_W = 480;
-let isPortrait = false, shopTop = 55, dpr = 1;
+let isPortrait = false, shopTop = 55;
 
 const AUTO_INTERVALS = [0,3.0,2.5,2.0,1.6,1.3,1.0,0.8,0.6,0.45,0.3];
 const MULTI_COUNTS = [1,2,3,5,7,10,15,20];
@@ -97,7 +97,6 @@ canvas.width = W; canvas.height = H;
 let scaleF = 1, offX = 0, offY = 0;
 function resize() {
     const sw = window.innerWidth, sh = window.innerHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, 3);
     isPortrait = sw < sh;
     if (isPortrait) {
         W = 1000; H = 1700;
@@ -108,7 +107,7 @@ function resize() {
         SHOP_X = 1090; SHOP_W = 480;
         shopTop = 55;
     }
-    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.width = W; canvas.height = H;
     scaleF = Math.min(sw / W, sh / H);
     const dw = W * scaleF, dh = H * scaleF;
     offX = (sw - dw) / 2; offY = (sh - dh) / 2;
@@ -128,7 +127,7 @@ const loadDots = [];
 for (let i=0;i<30;i++) loadDots.push({x:Math.random()*W,y:Math.random()*H,s:0.5+Math.random()*2,a:0.1+Math.random()*0.3});
 
 function renderLoad() {
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    ctx.clearRect(0,0,W,H);
     const bg=ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#0a0a2e'); bg.addColorStop(1,'#1a0a3e');
     ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
     for (const d of loadDots) { ctx.globalAlpha=d.a; ctx.fillStyle='#4fc3f7'; ctx.beginPath(); ctx.arc(d.x,d.y,d.s,0,Math.PI*2); ctx.fill(); }
@@ -439,7 +438,7 @@ function isHover(x,y,w,h){return hoverX>=x&&hoverX<=x+w&&hoverY>=y&&hoverY<=y+h;
 // RENDERING
 // ═══════════════════════════════════════════
 function render(){
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.save();
+    ctx.clearRect(0,0,W,H);ctx.save();
     if(shakeInt>0.3){shakeX=(Math.random()-0.5)*shakeInt;shakeY=(Math.random()-0.5)*shakeInt;ctx.translate(shakeX,shakeY);}
     const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a0a2e');bg.addColorStop(1,'#1a0a3e');ctx.fillStyle=bg;ctx.fillRect(-10,-10,W+20,H+20);
     for(const s of stars){ctx.globalAlpha=s.a+Math.sin(Date.now()*0.001+s.x)*0.08;ctx.fillStyle='#8ab4f8';ctx.beginPath();ctx.arc(s.x,s.y,s.sz,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
