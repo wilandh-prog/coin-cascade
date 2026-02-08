@@ -35,7 +35,8 @@ const RESTITUTION = 0.55;
 const SUB_STEPS = 3;
 const MAX_BALLS = 120, MAX_PARTICLES = 600;
 
-const BOARD_L = 145, BOARD_R = 955, BOARD_CX = 550;
+let BOARD_L = 145, BOARD_R = 955, BOARD_CX = 550;
+const BOARD_HW = 405;
 const DROP_Y = 100, BUCKET_Y = 740, BUCKET_H = 55;
 const PEG_ROWS = 12, PEG_HS = 90, PEG_VS = 50, PEG_Y0 = 150;
 
@@ -43,7 +44,7 @@ const BUCKET_MULTS = [5,1,2,1,10,1,2,1,5];
 const BUCKET_COLORS = ['#9c27b0','#607d8b','#2196f3','#607d8b','#ffd700','#607d8b','#2196f3','#607d8b','#9c27b0'];
 
 let SHOP_X = 1090, SHOP_W = 480;
-let isPortrait = false, shopTop = 55;
+let isPortrait = false, shopTop = 55, boardReady = false;
 
 const AUTO_INTERVALS = [0,3.0,2.5,2.0,1.6,1.3,1.0,0.8,0.6,0.45,0.3];
 const MULTI_COUNTS = [1,2,3,5,7,10,15,20];
@@ -100,13 +101,21 @@ function resize() {
     isPortrait = sw < sh;
     if (isPortrait) {
         W = 1000; H = 1700;
-        SHOP_X = BOARD_CX - 240; SHOP_W = 480;
         shopTop = BUCKET_Y + BUCKET_H + 35;
     } else {
         W = 1600; H = 900;
-        SHOP_X = 1090; SHOP_W = 480;
         shopTop = 55;
     }
+    const newCX = isPortrait ? W / 2 : 550;
+    const newBL = newCX - BOARD_HW, newBR = newCX + BOARD_HW;
+    const dx = newBL - BOARD_L;
+    if (dx !== 0 && boardReady) {
+        for (const p of pegs) p.x += dx;
+        for (const b of buckets) b.x += dx;
+        for (const ball of balls) { ball.x += dx; for (const t of ball.trail) t.x += dx; }
+    }
+    BOARD_CX = newCX; BOARD_L = newBL; BOARD_R = newBR;
+    SHOP_X = isPortrait ? (W - 480) / 2 : 1090; SHOP_W = 480;
     canvas.width = W; canvas.height = H;
     scaleF = Math.min(sw / W, sh / H);
     const dw = W * scaleF, dh = H * scaleF;
@@ -228,7 +237,7 @@ function createBoard(){
     pegs=[];
     for(let row=0;row<PEG_ROWS;row++){const odd=row%2===0;const cnt=odd?9:8;const sx=BOARD_CX-((cnt-1)/2)*PEG_HS;const y=PEG_Y0+row*PEG_VS;for(let c=0;c<cnt;c++)pegs.push({x:sx+c*PEG_HS,y,r:PEG_R,golden:false,hit:0});}
     buckets=[];const bw=(BOARD_R-BOARD_L)/9;for(let i=0;i<9;i++)buckets.push({x:BOARD_L+i*bw,w:bw,mult:BUCKET_MULTS[i],color:BUCKET_COLORS[i],hit:0});
-    updateGolden();
+    updateGolden();boardReady=true;
 }
 function updateGolden(){
     for(const p of pegs)p.golden=false;const cnt=GOLDEN_COUNTS[state.upgrades.goldenPegs];if(cnt<=0)return;
@@ -450,8 +459,7 @@ function render(){
 }
 
 function renderBoard(){
-    const brdPad=isPortrait?25:105,brdX=BOARD_L-brdPad;
-    ctx.fillStyle='rgba(0,0,0,0.3)';rrect(brdX,55,BOARD_R-BOARD_L+brdPad*2,BUCKET_Y+BUCKET_H-30,15);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.3)';rrect(BOARD_L-55,55,BOARD_R-BOARD_L+110,BUCKET_Y+BUCKET_H-30,15);ctx.fill();
     const da=0.15+Math.sin(Date.now()/500)*0.08;ctx.fillStyle=`rgba(100,200,255,${da})`;ctx.fillRect(BOARD_L,65,BOARD_R-BOARD_L,45);
     ctx.strokeStyle='rgba(100,200,255,0.4)';ctx.lineWidth=1;ctx.strokeRect(BOARD_L,65,BOARD_R-BOARD_L,45);
     ctx.fillStyle='rgba(200,230,255,0.6)';ctx.font='14px Arial,sans-serif';ctx.textAlign='center';ctx.fillText('\u25BC TAP TO DROP \u25BC',BOARD_CX,93);
