@@ -111,6 +111,7 @@ function resize() {
     scaleF = Math.min(sw / W, sh / H);
     const dw = W * scaleF, dh = H * scaleF;
     offX = (sw - dw) / 2; offY = (sh - dh) / 2;
+    if (isPortrait) offX -= (BOARD_CX - W / 2) * scaleF;
     canvas.style.width = dw + 'px'; canvas.style.height = dh + 'px';
     canvas.style.left = offX + 'px'; canvas.style.top = offY + 'px';
 }
