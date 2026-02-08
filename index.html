@@ -7,9 +7,13 @@
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { width: 100%; height: 100%; overflow: hidden; }
 body {
     background: #050515;
     overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -100,7 +104,9 @@ function resize() {
     const sw = window.innerWidth, sh = window.innerHeight;
     isPortrait = sw < sh;
     if (isPortrait) {
-        W = 1000; H = 1700;
+        W = 1000;
+        // Dynamic H: match screen aspect ratio so canvas fills the screen
+        H = Math.max(1700, Math.ceil(W * sh / sw));
         shopTop = BUCKET_Y + BUCKET_H + 35;
     } else {
         W = 1600; H = 900;
@@ -118,8 +124,8 @@ function resize() {
     SHOP_X = isPortrait ? (W - 480) / 2 : 1090; SHOP_W = 480;
     canvas.width = W; canvas.height = H;
     scaleF = Math.min(sw / W, sh / H);
-    const dw = W * scaleF, dh = H * scaleF;
-    offX = (sw - dw) / 2; offY = (sh - dh) / 2;
+    const dw = Math.floor(W * scaleF), dh = Math.floor(H * scaleF);
+    offX = Math.max(0, (sw - dw) / 2); offY = Math.max(0, (sh - dh) / 2);
     canvas.style.width = dw + 'px'; canvas.style.height = dh + 'px';
     canvas.style.left = offX + 'px'; canvas.style.top = offY + 'px';
 }
@@ -499,20 +505,20 @@ function renderUI(){
     btnRects=[];
     // Top bar
     const tg=ctx.createLinearGradient(0,0,0,50);tg.addColorStop(0,'rgba(0,0,0,0.7)');tg.addColorStop(1,'rgba(0,0,0,0.4)');ctx.fillStyle=tg;ctx.fillRect(0,0,W,50);
-    ctx.shadowColor='#4fc3f7';ctx.shadowBlur=8;ctx.fillStyle='#4fc3f7';ctx.font='bold 22px Arial,sans-serif';ctx.textAlign='left';ctx.fillText('COIN CASCADE',20,34);ctx.shadowBlur=0;
+    ctx.shadowColor='#4fc3f7';ctx.shadowBlur=8;ctx.fillStyle='#4fc3f7';ctx.font='bold 22px Arial,sans-serif';if(isPortrait){ctx.textAlign='center';ctx.fillText('COIN CASCADE',W/2,34);}else{ctx.textAlign='left';ctx.fillText('COIN CASCADE',20,34);}ctx.shadowBlur=0;
     // Coins
     const cs=24+coinPulse*10,coinX=isPortrait?W-40:1050;ctx.fillStyle='#ffd700';ctx.font=`bold ${cs}px Arial,sans-serif`;ctx.textAlign='right';
     if(coinPulse>0.1){ctx.shadowColor='#ffd700';ctx.shadowBlur=coinPulse*15;}
     ctx.fillText(fmtN(Math.floor(displayCoins)),coinX,34+coinPulse*2);ctx.shadowBlur=0;
     ctx.fillStyle='#aaa';ctx.font='14px Arial,sans-serif';ctx.fillText('coins',coinX,16);
     // Mute button
-    const mx=240,my=10,mw=32,mh=32,mhov=isHover(mx,my,mw,mh);
+    const mx=isPortrait?15:240,my=10,mw=32,mh=32,mhov=isHover(mx,my,mw,mh);
     ctx.fillStyle=mhov?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.07)';rrect(mx,my,mw,mh,6);ctx.fill();
     ctx.fillStyle=muted?'#666':'#8ab4f8';ctx.font='18px Arial,sans-serif';ctx.textAlign='center';ctx.fillText(muted?'\u2715':'\u266B',mx+mw/2,my+23);
     btnRects.push({x:mx,y:my,w:mw,h:mh,t:'mute'});
     // Boost timer
     const boostRem=Math.max(0,Math.ceil((state.boostEnd-Date.now())/1000));
-    if(boostRem>0){const pulse=0.7+Math.sin(Date.now()/200)*0.3;ctx.fillStyle=`rgba(255,68,68,${pulse})`;ctx.font='bold 16px Arial,sans-serif';ctx.textAlign='center';ctx.fillText('2x BOOST: '+boostRem+'s',550,34);}
+    if(boostRem>0){const pulse=0.7+Math.sin(Date.now()/200)*0.3;ctx.fillStyle=`rgba(255,68,68,${pulse})`;ctx.font='bold 16px Arial,sans-serif';ctx.textAlign='center';ctx.fillText('2x BOOST: '+boostRem+'s',isPortrait?W/2:550,isPortrait?66:34);}
 
     // Shop bg
     ctx.fillStyle='rgba(0,0,0,0.4)';rrect(SHOP_X-10,shopTop,SHOP_W+20,H-shopTop-15,15);ctx.fill();
