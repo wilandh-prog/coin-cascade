@@ -903,9 +903,13 @@ function renderOverlay(){
 }
 
 function renderOnboard(){
-    const b=Math.sin(Date.now()/300)*12,a=0.6+Math.sin(Date.now()/600)*0.3,fs=30*P|0,aw=18*P|0;
-    ctx.globalAlpha=a;ctx.shadowColor='#fff';ctx.shadowBlur=10;ctx.fillStyle='#fff';ctx.font=`bold ${fs}px Orbitron,sans-serif`;ctx.textAlign='center';
-    ctx.fillText('TAP HERE!',BOARD_CX,50+b);ctx.beginPath();ctx.moveTo(BOARD_CX-aw,62+b);ctx.lineTo(BOARD_CX+aw,62+b);ctx.lineTo(BOARD_CX,80+b);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
+    const b=Math.sin(Date.now()/300)*10,a=0.7+Math.sin(Date.now()/600)*0.3,fs=36*P|0,aw=22*P|0;
+    const ty=DROP_Y+80+b;
+    ctx.globalAlpha=a;ctx.shadowColor='#4fc3f7';ctx.shadowBlur=20;
+    ctx.fillStyle='#fff';ctx.font=`bold ${fs}px Bungee,sans-serif`;ctx.textAlign='center';
+    ctx.fillText('TAP ABOVE!',BOARD_CX,ty);
+    ctx.beginPath();ctx.moveTo(BOARD_CX-aw,ty-fs-4);ctx.lineTo(BOARD_CX+aw,ty-fs-4);ctx.lineTo(BOARD_CX,ty-fs-20);ctx.closePath();ctx.fill();
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
 }
 
 // ═══════════════════════════════════════════
