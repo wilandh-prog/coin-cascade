@@ -635,7 +635,7 @@ function renderBoard(){
     }
     const wg=ctx.createLinearGradient(0,110,0,BUCKET_Y+BUCKET_H);wg.addColorStop(0,'rgba(100,200,255,0.05)');wg.addColorStop(0.5,'rgba(100,200,255,0.2)');wg.addColorStop(1,'rgba(100,200,255,0.05)');
     ctx.strokeStyle=wg;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(BOARD_L,110);ctx.lineTo(BOARD_L,BUCKET_Y+BUCKET_H);ctx.stroke();ctx.beginPath();ctx.moveTo(BOARD_R,110);ctx.lineTo(BOARD_R,BUCKET_Y+BUCKET_H);ctx.stroke();
-    if(balls.length===0&&!playing){const oa=0.5+Math.sin(Date.now()/500)*0.3;ctx.globalAlpha=oa;ctx.fillStyle='#fff';ctx.font=`bold ${22*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';ctx.fillText('Tap here to drop balls!',BOARD_CX,BUCKET_Y/2+30);ctx.globalAlpha=1;}
+    if(balls.length===0&&!playing){const oa=0.5+Math.sin(Date.now()/500)*0.3;ctx.globalAlpha=oa;ctx.fillStyle='#fff';ctx.font=`bold ${22*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';ctx.fillText('Tap here to drop balls!',BOARD_CX,DROP_Y+25);ctx.globalAlpha=1;}
 }
 
 function renderBalls(){
