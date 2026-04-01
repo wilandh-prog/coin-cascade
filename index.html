@@ -611,7 +611,7 @@ function renderBoard(){
                 ctx.shadowBlur=0;ctx.globalAlpha=1;
             } else {ctx.globalAlpha=0.2;ctx.strokeStyle='#4fc3f7';ctx.lineWidth=1;ctx.beginPath();ctx.arc(dx,sy,dotR,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
         }
-        if(avail===0){ctx.fillStyle='rgba(255,100,100,0.6)';ctx.font=`${11*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';ctx.fillText('FULL',BOARD_CX,sy+dotR+14);}
+        if(avail===0){ctx.fillStyle='rgba(255,100,100,0.6)';ctx.font=`${11*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';ctx.fillText(state.upgrades.multiBall<7?'FULL \u2014 Upgrade Multi Ball!':'FULL',BOARD_CX,sy+dotR+14);}
     } else {
         const barW=BOARD_R-BOARD_L-80,barH=8,bx=BOARD_CX-barW/2,by=76;
         ctx.fillStyle='rgba(255,255,255,0.08)';rrect(bx,by,barW,barH,4);ctx.fill();
