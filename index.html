@@ -592,7 +592,6 @@ function render(){
     renderBoard();renderBalls();renderParticles();renderRings();renderFireworks();renderTexts();ctx.restore();
     renderUI();renderNotifs();
     if(overlay)renderOverlay();
-    if(!state.firstDrop)renderOnboard();
 }
 
 function renderBoard(){
@@ -902,15 +901,6 @@ function renderOverlay(){
     }
 }
 
-function renderOnboard(){
-    const b=Math.sin(Date.now()/300)*10,a=0.7+Math.sin(Date.now()/600)*0.3,fs=36*P|0,aw=22*P|0;
-    const ty=DROP_Y+80+b;
-    ctx.globalAlpha=a;ctx.shadowColor='#4fc3f7';ctx.shadowBlur=20;
-    ctx.fillStyle='#fff';ctx.font=`bold ${fs}px Bungee,sans-serif`;ctx.textAlign='center';
-    ctx.fillText('TAP ABOVE!',BOARD_CX,ty);
-    ctx.beginPath();ctx.moveTo(BOARD_CX-aw,ty-fs-4);ctx.lineTo(BOARD_CX+aw,ty-fs-4);ctx.lineTo(BOARD_CX,ty-fs-20);ctx.closePath();ctx.fill();
-    ctx.shadowBlur=0;ctx.globalAlpha=1;
-}
 
 // ═══════════════════════════════════════════
 // UPDATE
@@ -954,6 +944,7 @@ async function init(){
     loadMsg='Ready!';loadTgt=1.0;await delay(400);
     loaded=true;sdkCall(()=>sdk.game.sdkGameLoadingStop());
     checkDaily();
+    if(!state.firstDrop)setTimeout(()=>{notifs.push({text:'Tap the top of the board to drop balls!',color:'#4fc3f7',timer:6});},800);
     requestAnimationFrame(loop);
 }
 init();
