@@ -741,24 +741,6 @@ function renderUpgTab(){
         if(pp>0){ctx.fillStyle='#ffd700';ctx.fillRect(SHOP_X+10,uy+pr4,(SHOP_W-20)*pp,3);}
     }
     btnRects.push({x:SHOP_X,y:uy,w:SHOP_W,h:prH,t:'prest'});
-
-    // Rewarded ad / boost
-    uy+=prH+9;
-    const boH=isPortrait?52:42;
-    const boostActive=Date.now()<state.boostEnd;
-    const rhov=isHover(SHOP_X,uy,SHOP_W,boH);
-    if(boostActive){
-        ctx.fillStyle='rgba(255,68,68,0.2)';rrect(SHOP_X,uy,SHOP_W,boH,8);ctx.fill();
-        ctx.strokeStyle='rgba(255,68,68,0.4)';ctx.lineWidth=1;rrect(SHOP_X,uy,SHOP_W,boH,8);ctx.stroke();
-        const rem=Math.ceil((state.boostEnd-Date.now())/1000);
-        ctx.fillStyle='#ff6666';ctx.font=`bold ${14*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';ctx.fillText('2x BOOST ACTIVE — '+rem+'s remaining',SHOP_X+SHOP_W/2,uy+boH*0.64|0);
-    } else {
-        ctx.fillStyle=`rgba(156,39,176,${rhov?0.3:0.2})`;rrect(SHOP_X,uy,SHOP_W,boH,8);ctx.fill();
-        ctx.strokeStyle=`rgba(156,39,176,${rhov?0.6:0.35})`;ctx.lineWidth=rhov?2:1;rrect(SHOP_X,uy,SHOP_W,boH,8);ctx.stroke();
-        ctx.fillStyle='#ce93d8';ctx.font=`bold ${14*P|0}px Orbitron,sans-serif`;ctx.textAlign='center';
-        ctx.fillText(sdkOk?'Watch Ad for 2x Boost (60s)':'2x Boost (ads in CrazyGames)',SHOP_X+SHOP_W/2,uy+boH*0.64|0);
-    }
-    btnRects.push({x:SHOP_X,y:uy,w:SHOP_W,h:boH,t:'reward'});
 }
 
 function renderAchTab(){
