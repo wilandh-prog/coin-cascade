@@ -57,6 +57,7 @@ let isPortrait = false, shopTop = 55, boardReady = false, P = 1;
 
 const AUTO_INTERVALS = [0,3.0,2.5,2.0,1.6,1.3,1.0,0.8,0.6,0.45,0.3];
 const MULTI_COUNTS = [1,2,3,5,7,10,15,20];
+const BALL_CAPS = [3,6,10,18,30,50,80,120];
 const VALUE_MULTS = [1,1.5,2,3,5,8,13,20,35,60,100];
 const GOLDEN_COUNTS = [0,3,6,10,15,21,28,36,45];
 const BALL_SIZES = [7,8,9,11,13,15];
@@ -65,7 +66,7 @@ const MAGNET_K = [0,0.015,0.035,0.06,0.09,0.13];
 
 const UPGRADES = [
     {id:'autoDrop',name:'Auto Drop',maxLv:10,base:50,mult:2.8,desc:l=>l===0?'Auto drop balls':'Every '+AUTO_INTERVALS[l]+'s'},
-    {id:'multiBall',name:'Multi Ball',maxLv:7,base:100,mult:3.2,desc:l=>MULTI_COUNTS[l]+' balls/drop'},
+    {id:'multiBall',name:'Multi Ball',maxLv:7,base:100,mult:3.2,desc:l=>MULTI_COUNTS[l]+' balls/drop (max '+BALL_CAPS[l]+')'},
     {id:'ballValue',name:'Ball Value',maxLv:10,base:60,mult:2.4,desc:l=>VALUE_MULTS[l]+'x value'},
     {id:'goldenPegs',name:'Golden Pegs',maxLv:8,base:150,mult:2.8,desc:l=>GOLDEN_COUNTS[l]+' golden pegs'},
     {id:'luckyBounce',name:'Lucky Bounce',maxLv:5,base:400,mult:3.5,desc:l=>l===0?'Boost buckets':'Buckets +'+l},
@@ -316,7 +317,8 @@ function efxScale(n){return Math.max(1,n*Math.max(0.2,1-balls.length*0.012)|0);}
 // BALLS, PARTICLES, TEXTS
 // ═══════════════════════════════════════════
 let balls=[],particles=[],texts=[];
-function spawnBall(x){if(balls.length>=MAX_BALLS)return;balls.push({x,y:DROP_Y,vx:(Math.random()-0.5)*20,vy:0,r:BALL_SIZES[state.upgrades.ballSize],trail:[],tt:0,golds:0,life:15});}
+function ballCap(){return BALL_CAPS[state.upgrades.multiBall];}
+function spawnBall(x){if(balls.length>=ballCap())return;balls.push({x,y:DROP_Y,vx:(Math.random()-0.5)*20,vy:0,r:BALL_SIZES[state.upgrades.ballSize],trail:[],tt:0,golds:0,life:15});}
 function dropBalls(x){
     const cnt=MULTI_COUNTS[state.upgrades.multiBall];
     for(let i=0;i<cnt;i++){const ox=cnt>1?(i-(cnt-1)/2)*14:0;spawnBall(Math.max(BOARD_L+20,Math.min(BOARD_R-20,x+ox)));}
@@ -672,7 +674,7 @@ function renderUI(){
 
     // Stats
     ctx.fillStyle='#556';ctx.font=`${12*P|0}px Orbitron,sans-serif`;ctx.textAlign='left';
-    ctx.fillText('Balls: '+balls.length+' | Best drop: '+fmtN(state.bestDrop)+' | Total: '+fmtN(state.totalEarned),50,H-12);
+    ctx.fillText('Balls: '+balls.length+'/'+ballCap()+' | Best drop: '+fmtN(state.bestDrop)+' | Total: '+fmtN(state.totalEarned),50,H-12);
     const pm=Math.pow(2,state.prestige);
     if(state.prestige>0){ctx.fillStyle='#ffd700';ctx.font=`bold ${14*P|0}px Orbitron,sans-serif`;ctx.fillText('Prestige x'+pm,isPortrait?500:600,H-12);}
 }
