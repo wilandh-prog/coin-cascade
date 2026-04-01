@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Coin Cascade</title>
+<title>Power Plinko</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -175,8 +175,8 @@ function renderLoad() {
     for (const d of loadDots) { ctx.globalAlpha=d.a; ctx.fillStyle='#4fc3f7'; ctx.beginPath(); ctx.arc(d.x,d.y,d.s,0,Math.PI*2); ctx.fill(); }
     ctx.globalAlpha=1;
     ctx.shadowColor='#4fc3f7'; ctx.shadowBlur=30; ctx.fillStyle='#4fc3f7';
-    ctx.font='bold 68px Bungee,sans-serif'; ctx.textAlign='center'; ctx.fillText('COIN CASCADE',W/2,H/2-70); ctx.shadowBlur=0;
-    ctx.fillStyle='#8ab4f8'; ctx.font='20px Orbitron,sans-serif'; ctx.fillText('Physics Idle Game',W/2,H/2-35);
+    ctx.font='bold 68px Bungee,sans-serif'; ctx.textAlign='center'; ctx.fillText('POWER PLINKO',W/2,H/2-70); ctx.shadowBlur=0;
+    ctx.fillStyle='#8ab4f8'; ctx.font='20px Orbitron,sans-serif'; ctx.fillText('Drop. Bounce. Profit.',W/2,H/2-35);
     const bw=420,bh=22,bx=W/2-bw/2,by=H/2+10;
     ctx.fillStyle='rgba(255,255,255,0.08)'; rrect(bx,by,bw,bh,11); ctx.fill();
     loadProg+=(loadTgt-loadProg)*0.07;
@@ -497,7 +497,7 @@ function sto(){return{
     get:k=>{try{if(sdkOk&&sdk.data)return sdk.data.getItem(k);return localStorage.getItem(k);}catch(e){return null;}}
 };}
 function save(){
-    sto().set('coinCascade',JSON.stringify({
+    sto().set('powerPlinko',JSON.stringify({
         coins:state.coins,totalEarned:state.totalEarned,upgrades:{...state.upgrades},
         prestige:state.prestige,ballsDropped:state.ballsDropped,firstDrop:state.firstDrop,
         dailyStreak:state.dailyStreak,lastDaily:state.lastDaily,
@@ -508,7 +508,7 @@ function save(){
     }));
 }
 function load(){
-    const raw=sto().get('coinCascade');if(!raw)return;
+    const raw=sto().get('powerPlinko');if(!raw)return;
     try{
         const d=JSON.parse(raw);
         state.coins=d.coins||0;state.totalEarned=d.totalEarned||0;
@@ -656,7 +656,7 @@ function renderUI(){
     btnRects=[];
     // Top bar
     const barH=50*P|0;const tg=ctx.createLinearGradient(0,0,0,barH);tg.addColorStop(0,'rgba(0,0,0,0.7)');tg.addColorStop(1,'rgba(0,0,0,0.4)');ctx.fillStyle=tg;ctx.fillRect(0,0,W,barH);
-    ctx.shadowColor='#4fc3f7';ctx.shadowBlur=8;ctx.fillStyle='#4fc3f7';ctx.font=`bold ${22*P|0}px Bungee,sans-serif`;if(isPortrait){ctx.textAlign='center';ctx.fillText('COIN CASCADE',W/2,barH*0.68|0);}else{ctx.textAlign='left';ctx.fillText('COIN CASCADE',20,34);}ctx.shadowBlur=0;
+    ctx.shadowColor='#4fc3f7';ctx.shadowBlur=8;ctx.fillStyle='#4fc3f7';ctx.font=`bold ${22*P|0}px Bungee,sans-serif`;if(isPortrait){ctx.textAlign='center';ctx.fillText('POWER PLINKO',W/2,barH*0.68|0);}else{ctx.textAlign='left';ctx.fillText('POWER PLINKO',20,34);}ctx.shadowBlur=0;
     // Coins
     const cs=(24*P|0)+coinPulse*10,coinX=isPortrait?W-20:1050;ctx.fillStyle='#ffd700';ctx.font=`bold ${cs}px Orbitron,sans-serif`;ctx.textAlign='right';
     if(coinPulse>0.1){ctx.shadowColor='#ffd700';ctx.shadowBlur=coinPulse*15;}
