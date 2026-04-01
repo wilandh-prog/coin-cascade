@@ -38,6 +38,8 @@ const BALL_R = 7, PEG_R = 10;
 const RESTITUTION = 0.55;
 const SUB_STEPS = 3;
 const MAX_BALLS = 120, MAX_PARTICLES = 600;
+const GRID_SZ = 50;
+let pegGrid = {}, bgGrad = null;
 
 let BOARD_L = 145, BOARD_R = 955, BOARD_CX = 550;
 const BOARD_HW = 405;
@@ -92,6 +94,23 @@ const ACHIEVS = [
     {id:'earn1t',name:'Trillionaire',desc:'Earn 1T total',reward:10000000,check:s=>s.totalEarned>=1000000000000},
 ];
 
+const MISSION_POOL = [
+    {id:'drop',name:'Ball Dropper',targets:[30,100,300],rewards:[150,500,2000]},
+    {id:'earn',name:'Coin Hunter',targets:[500,5000,50000],rewards:[200,800,4000]},
+    {id:'golden',name:'Gold Rush',targets:[5,20,60],rewards:[300,1000,4000]},
+    {id:'bigwin',name:'High Roller',targets:[3,10,30],rewards:[400,1200,5000]},
+    {id:'crit',name:'Lucky Strike',targets:[2,8,25],rewards:[350,1000,4000]},
+    {id:'center',name:'Jackpot Hunter',targets:[2,6,15],rewards:[500,1500,6000]},
+];
+const HEAD_START=[0,500,2500,10000,40000,150000];
+const PERM_UPGRADES=[
+    {id:'startCoins',name:'Head Start',maxLv:5,costs:[1,2,4,8,16]},
+    {id:'idleBoost',name:'Idle Earnings',maxLv:5,costs:[1,2,4,8,16]},
+    {id:'superCrit',name:'Super Crit',maxLv:3,costs:[3,8,20]},
+    {id:'offlineMax',name:'Long Offline',maxLv:4,costs:[2,5,12,28]},
+    {id:'missionBonus',name:'Task Master',maxLv:3,costs:[2,6,15]},
+];
+
 // ═══════════════════════════════════════════
 // CANVAS
 // ═══════════════════════════════════════════
@@ -120,11 +139,12 @@ function resize() {
         for (const p of pegs) p.x += dx;
         for (const b of buckets) b.x += dx;
         for (const ball of balls) { ball.x += dx; for (const t of ball.trail) t.x += dx; }
+        buildPegGrid();
     }
     BOARD_CX = newCX; BOARD_L = newBL; BOARD_R = newBR;
     SHOP_W = isPortrait ? 750 : 480;
     SHOP_X = isPortrait ? (W - SHOP_W) / 2 : 1090;
-    canvas.width = W; canvas.height = H;
+    canvas.width = W; canvas.height = H; bgGrad=null;
     scaleF = Math.min(sw / W, sh / H);
     const dw = Math.floor(W * scaleF), dh = Math.floor(H * scaleF);
     offX = Math.max(0, (sw - dw) / 2); offY = Math.max(0, (sh - dh) / 2);
@@ -172,7 +192,9 @@ let state = {
     prestige:0,ballsDropped:0,firstDrop:false,
     dailyStreak:0,lastDaily:0,
     achieved:{},bestDrop:0,bestGolds:0,
-    boostEnd:0
+    boostEnd:0,
+    stars:0,permUpgrades:{startCoins:0,idleBoost:0,superCrit:0,offlineMax:0,missionBonus:0},
+    missions:[],missionDay:0
 };
 let displayCoins=0, playing=false, lastAdTime=0, autoTimer=0, dropCooldown=0;
 let hoverX=-1, hoverY=-1, saveTimer=0, coinPulse=0;
@@ -245,13 +267,47 @@ function createBoard(){
     pegs=[];
     for(let row=0;row<PEG_ROWS;row++){const odd=row%2===0;const cnt=odd?9:8;const sx=BOARD_CX-((cnt-1)/2)*PEG_HS;const y=PEG_Y0+row*PEG_VS;for(let c=0;c<cnt;c++)pegs.push({x:sx+c*PEG_HS,y,r:PEG_R,golden:false,hit:0});}
     buckets=[];const bw=(BOARD_R-BOARD_L)/9;for(let i=0;i<9;i++)buckets.push({x:BOARD_L+i*bw,w:bw,mult:BUCKET_MULTS[i],color:BUCKET_COLORS[i],hit:0});
-    updateGolden();boardReady=true;
+    updateGolden();buildPegGrid();buildPegSprites();boardReady=true;
 }
 function updateGolden(){
     for(const p of pegs)p.golden=false;const cnt=GOLDEN_COUNTS[state.upgrades.goldenPegs];if(cnt<=0)return;
     const el=pegs.filter(p=>p.y>PEG_Y0+PEG_VS*1.5);for(let i=el.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[el[i],el[j]]=[el[j],el[i]];}
     for(let i=0;i<Math.min(cnt,el.length);i++)el[i].golden=true;
 }
+function buildPegGrid(){
+    pegGrid={};
+    for(const p of pegs){const k=(p.x/GRID_SZ|0)*1000+(p.y/GRID_SZ|0);if(!pegGrid[k])pegGrid[k]=[];pegGrid[k].push(p);}
+}
+let pegNorm,pegGold,ballSprCache={};
+function buildPegSprites(){
+    const r=PEG_R,pad=4,sz=(r+pad)*2;
+    pegNorm=document.createElement('canvas');pegNorm.width=pegNorm.height=sz;
+    const c1=pegNorm.getContext('2d'),cx1=sz/2,cy1=sz/2;
+    const g1=c1.createRadialGradient(cx1-2,cy1-2,0,cx1,cy1,r);
+    g1.addColorStop(0,'rgba(140,220,255,1)');g1.addColorStop(1,'rgba(50,150,220,1)');
+    c1.beginPath();c1.arc(cx1,cy1,r,0,Math.PI*2);c1.fillStyle=g1;c1.fill();
+    c1.beginPath();c1.arc(cx1-r*0.25,cy1-r*0.25,r*0.3,0,Math.PI*2);c1.fillStyle='rgba(255,255,255,0.25)';c1.fill();
+    const pd2=10,sz2=(r+pd2)*2;
+    pegGold=document.createElement('canvas');pegGold.width=pegGold.height=sz2;
+    const c2=pegGold.getContext('2d'),cx2=sz2/2,cy2=sz2/2;
+    c2.beginPath();c2.arc(cx2,cy2,r+6,0,Math.PI*2);c2.fillStyle='rgba(255,215,0,0.1)';c2.fill();
+    const g2=c2.createRadialGradient(cx2-2,cy2-2,0,cx2,cy2,r);
+    g2.addColorStop(0,'#fff8c4');g2.addColorStop(0.5,'#ffd700');g2.addColorStop(1,'#b8860b');
+    c2.beginPath();c2.arc(cx2,cy2,r,0,Math.PI*2);c2.fillStyle=g2;c2.fill();
+    c2.strokeStyle='#ffeb3b';c2.lineWidth=1;c2.beginPath();c2.arc(cx2,cy2,r,0,Math.PI*2);c2.stroke();
+    c2.beginPath();c2.arc(cx2-r*0.25,cy2-r*0.25,r*0.3,0,Math.PI*2);c2.fillStyle='rgba(255,255,255,0.25)';c2.fill();
+    ballSprCache={};
+}
+function getBallSpr(r,gold){
+    const k=r*2+(gold?1:0);if(ballSprCache[k])return ballSprCache[k];
+    const pad=5,sz=(r+pad)*2,cv=document.createElement('canvas');cv.width=cv.height=sz;
+    const t=cv.getContext('2d'),cx=sz/2,cy=sz/2;
+    t.beginPath();t.arc(cx,cy,r+3,0,Math.PI*2);t.fillStyle=gold?'rgba(255,215,0,0.2)':'rgba(79,195,247,0.15)';t.fill();
+    const bg=t.createRadialGradient(cx-1,cy-2,0,cx,cy,r);bg.addColorStop(0,'#fff');bg.addColorStop(1,gold?'#daa520':'#b0d4f1');
+    t.beginPath();t.arc(cx,cy,r,0,Math.PI*2);t.fillStyle=bg;t.fill();
+    return ballSprCache[k]=cv;
+}
+function efxScale(n){return Math.max(1,n*Math.max(0.2,1-balls.length*0.012)|0);}
 
 // ═══════════════════════════════════════════
 // BALLS, PARTICLES, TEXTS
@@ -261,7 +317,7 @@ function spawnBall(x){if(balls.length>=MAX_BALLS)return;balls.push({x,y:DROP_Y,v
 function dropBalls(x){
     const cnt=MULTI_COUNTS[state.upgrades.multiBall];
     for(let i=0;i<cnt;i++){const ox=cnt>1?(i-(cnt-1)/2)*14:0;spawnBall(Math.max(BOARD_L+20,Math.min(BOARD_R-20,x+ox)));}
-    state.ballsDropped+=cnt;if(!state.firstDrop){state.firstDrop=true;gpStart();}addParts(x,DROP_Y,4,'#4fc3f780');
+    state.ballsDropped+=cnt;missionTrack('drop',cnt);if(!state.firstDrop){state.firstDrop=true;gpStart();}addParts(x,DROP_Y,4,'#4fc3f780');
 }
 function addParts(x,y,n,col){for(let i=0;i<n&&particles.length<MAX_PARTICLES;i++){const a=Math.random()*Math.PI*2,sp=40+Math.random()*120,ml=0.3+Math.random()*0.4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:ml,ml,color:col,sz:2+Math.random()*3});}}
 function addConfetti(x,y,n){const cols=['#ff4444','#44ff44','#4444ff','#ffff44','#ff44ff','#44ffff','#ffd700','#ff8800'];for(let i=0;i<n&&particles.length<MAX_PARTICLES;i++){const a=Math.random()*Math.PI*2,sp=80+Math.random()*200,ml=0.6+Math.random()*0.8;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-100,life:ml,ml,color:cols[Math.floor(Math.random()*cols.length)],sz:3+Math.random()*4});}}
@@ -274,14 +330,17 @@ function addFlash(col,int){screenFlash=Math.max(screenFlash,int||0.4);flashColor
 // PHYSICS
 // ═══════════════════════════════════════════
 function updatePhysics(dt){
-    const sdt=dt/SUB_STEPS;
+    const sdt=dt/SUB_STEPS,tMax=balls.length>60?4:8;
     for(let b=balls.length-1;b>=0;b--){
         const ball=balls[b];ball.life-=dt;ball.tt+=dt;
-        if(ball.tt>0.025){ball.trail.unshift({x:ball.x,y:ball.y});if(ball.trail.length>8)ball.trail.pop();ball.tt=0;}
+        if(ball.tt>0.025){ball.trail.unshift({x:ball.x,y:ball.y});if(ball.trail.length>tMax)ball.trail.pop();ball.tt=0;}
         for(let s=0;s<SUB_STEPS;s++){
             ball.vy+=GRAVITY*sdt;ball.x+=ball.vx*sdt;ball.y+=ball.vy*sdt;
-            for(const peg of pegs){const dx=ball.x-peg.x,dy=ball.y-peg.y,d2=dx*dx+dy*dy,md=ball.r+peg.r;
-                if(d2<md*md&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;ball.x=peg.x+nx*(md+0.5);ball.y=peg.y+ny*(md+0.5);const dot=ball.vx*nx+ball.vy*ny;ball.vx-=2*dot*nx;ball.vy-=2*dot*ny;ball.vx*=RESTITUTION;ball.vy*=RESTITUTION;ball.vx+=(Math.random()-0.5)*25;peg.hit=1;if(peg.golden){ball.golds++;addParts(ball.x,ball.y,6,'#ffd700');sndPegHit(peg);}else{addParts(ball.x,ball.y,2,'#4fc3f7');sndPegHit(peg);}}}
+            const gx0=(ball.x-ball.r-PEG_R)/GRID_SZ|0,gx1=(ball.x+ball.r+PEG_R)/GRID_SZ|0;
+            const gy0=(ball.y-ball.r-PEG_R)/GRID_SZ|0,gy1=(ball.y+ball.r+PEG_R)/GRID_SZ|0;
+            for(let gx=gx0;gx<=gx1;gx++)for(let gy=gy0;gy<=gy1;gy++){const cell=pegGrid[gx*1000+gy];if(!cell)continue;
+                for(let pi=0;pi<cell.length;pi++){const peg=cell[pi];const dx=ball.x-peg.x,dy=ball.y-peg.y,d2=dx*dx+dy*dy,md=ball.r+peg.r;
+                if(d2<md*md&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;ball.x=peg.x+nx*(md+0.5);ball.y=peg.y+ny*(md+0.5);const dot=ball.vx*nx+ball.vy*ny;ball.vx-=2*dot*nx;ball.vy-=2*dot*ny;ball.vx*=RESTITUTION;ball.vy*=RESTITUTION;ball.vx+=(Math.random()-0.5)*25;peg.hit=1;if(peg.golden){ball.golds++;missionTrack('golden',1);addParts(ball.x,ball.y,efxScale(6),'#ffd700');sndPegHit(peg);}else{addParts(ball.x,ball.y,efxScale(2),'#4fc3f7');sndPegHit(peg);}}}}
             if(ball.x-ball.r<BOARD_L){ball.x=BOARD_L+ball.r;ball.vx=Math.abs(ball.vx)*RESTITUTION;}
             if(ball.x+ball.r>BOARD_R){ball.x=BOARD_R-ball.r;ball.vx=-Math.abs(ball.vx)*RESTITUTION;}
             if(state.upgrades.magnet>0)ball.vx+=(BOARD_CX-ball.x)*MAGNET_K[state.upgrades.magnet]*sdt;
@@ -296,16 +355,16 @@ function scoreBall(ball,bi){
     const boostOn=Date.now()<state.boostEnd?2:1;
     let score=Math.max(1,Math.floor(bmult*vmult*gmult*pmult*boostOn));
     const isCrit=state.upgrades.critHit>0&&Math.random()<CRIT_CHANCES[state.upgrades.critHit];
-    if(isCrit)score*=3;
-    state.coins+=score;state.totalEarned+=score;bk.hit=1;
+    if(isCrit)score*=(3+(state.permUpgrades.superCrit||0));
+    state.coins+=score;state.totalEarned+=score;bk.hit=1;missionTrack('earn',score);if(score>=50)missionTrack('bigwin',1);if(isCrit)missionTrack('crit',1);if(bi===4)missionTrack('center',1);
     if(score>state.bestDrop)state.bestDrop=score;
     if(ball.golds>state.bestGolds)state.bestGolds=ball.golds;
     const cx=bk.x+bk.w/2;
-    if(bmult>=10){addConfetti(cx,BUCKET_Y,30);shake(12);coinPulse=1;sndScore(true);happytime();addRing(cx,BUCKET_Y,bk.color);addRing(cx,BUCKET_Y,'#fff');for(let f=0;f<3;f++)addFirework(cx+(Math.random()-0.5)*100,BUCKET_Y);addFlash('#ffd700',0.3);}
-    else if(bmult>=5){addConfetti(cx,BUCKET_Y,14);shake(6);coinPulse=Math.max(coinPulse,0.7);sndScore(true);addRing(cx,BUCKET_Y,bk.color);addFirework(cx,BUCKET_Y);}
-    else{addParts(cx,BUCKET_Y,6,bk.color);sndScore(false);}
-    if(score>=1000){for(let f=0;f<2;f++)addFirework(BOARD_L+Math.random()*(BOARD_R-BOARD_L),BUCKET_Y);addFlash('#fff',0.2);}
-    if(isCrit){addConfetti(cx,BUCKET_Y-20,12);shake(6);addRing(cx,BUCKET_Y,'#ff4444');addFlash('#ff4444',0.2);}
+    if(bmult>=10){addConfetti(cx,BUCKET_Y,efxScale(30));shake(12);coinPulse=1;sndScore(true);happytime();addRing(cx,BUCKET_Y,bk.color);addRing(cx,BUCKET_Y,'#fff');for(let f=0;f<efxScale(3);f++)addFirework(cx+(Math.random()-0.5)*100,BUCKET_Y);addFlash('#ffd700',0.3);}
+    else if(bmult>=5){addConfetti(cx,BUCKET_Y,efxScale(14));shake(6);coinPulse=Math.max(coinPulse,0.7);sndScore(true);addRing(cx,BUCKET_Y,bk.color);addFirework(cx,BUCKET_Y);}
+    else{addParts(cx,BUCKET_Y,efxScale(6),bk.color);sndScore(false);}
+    if(score>=1000){for(let f=0;f<efxScale(2);f++)addFirework(BOARD_L+Math.random()*(BOARD_R-BOARD_L),BUCKET_Y);addFlash('#fff',0.2);}
+    if(isCrit){addConfetti(cx,BUCKET_Y-20,efxScale(12));shake(6);addRing(cx,BUCKET_Y,'#ff4444');addFlash('#ff4444',0.2);}
     addText(cx,BUCKET_Y-10,(isCrit?'CRIT! ':'')+'+'+(boostOn>1?'x2 ':'')+fmtN(score),isCrit?'#ff4444':bk.color,isCrit?32:bmult>=10?36:bmult>=5?28:18);
 }
 
@@ -320,10 +379,12 @@ function buyUpg(i){
 function prestThresh(){return Math.floor(100000*Math.pow(10,state.prestige));}
 function canPrest(){return state.totalEarned>=prestThresh();}
 function doPrestige(){
-    if(!canPrest())return;state.prestige++;state.coins=0;state.totalEarned=0;
+    if(!canPrest())return;
+    const earnedStars=state.prestige+1;state.stars=(state.stars||0)+earnedStars;
+    state.prestige++;state.coins=HEAD_START[state.permUpgrades.startCoins||0];state.totalEarned=0;
     state.upgrades={autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0};
     balls=[];particles=[];texts=[];createBoard();save();
-    addText(W/2,H/2,'PRESTIGE! x'+Math.pow(2,state.prestige),'#ffd700',48);addConfetti(W/2,H/2,50);shake(15);sndPrestige();happytime();for(let f=0;f<6;f++)addFirework(W/2+(Math.random()-0.5)*300,H/2+Math.random()*100);addRing(W/2,H/2,'#ffd700');addRing(W/2,H/2,'#fff');addFlash('#ffd700',0.45);showMidAd();
+    addText(W/2,H/2,'PRESTIGE! x'+Math.pow(2,state.prestige),'#ffd700',48);addText(W/2,H/2+50,'+'+earnedStars+' \u2B50','#ff44ff',32);addConfetti(W/2,H/2,50);shake(15);sndPrestige();happytime();for(let f=0;f<6;f++)addFirework(W/2+(Math.random()-0.5)*300,H/2+Math.random()*100);addRing(W/2,H/2,'#ffd700');addRing(W/2,H/2,'#fff');addFlash('#ffd700',0.45);showMidAd();
 }
 
 // ═══════════════════════════════════════════
@@ -366,6 +427,63 @@ function claimDaily(){
 }
 
 // ═══════════════════════════════════════════
+// MISSIONS & PRESTIGE SHOP
+// ═══════════════════════════════════════════
+function getMissionDay(){return Math.floor(Date.now()/86400000);}
+function missionDesc(m){
+    switch(m.id){
+        case'drop':return'Drop '+m.target+' balls';
+        case'earn':return'Earn '+fmtN(m.target)+' coins';
+        case'golden':return'Hit '+m.target+' golden pegs';
+        case'bigwin':return'Score 50+ from one ball '+m.target+'x';
+        case'crit':return'Land '+m.target+' critical hits';
+        case'center':return'Hit 10x bucket '+m.target+' times';
+    }return'';
+}
+function generateMissions(){
+    const day=getMissionDay();
+    if(state.missionDay===day&&state.missions&&state.missions.length===3)return;
+    const isRefresh=state.missionDay>0;
+    const indices=[];
+    while(indices.length<3){const i=Math.floor(Math.random()*MISSION_POOL.length);if(!indices.includes(i))indices.push(i);}
+    state.missions=indices.map(i=>{
+        const m=MISSION_POOL[i],t=Math.floor(Math.random()*3),pmult=1+state.prestige*0.3;
+        const bonusMult=1+(state.permUpgrades.missionBonus||0)*0.25;
+        return{id:m.id,name:m.name,target:Math.ceil(m.targets[t]*pmult),reward:Math.ceil(m.rewards[t]*pmult*bonusMult),progress:0,claimed:false};
+    });
+    state.missionDay=day;
+    if(isRefresh)notifs.push({text:'New daily missions available!',color:'#ff44ff',timer:5});
+    save();
+}
+function missionTrack(type,amount){
+    if(!state.missions)return;
+    for(const m of state.missions){if(!m.claimed&&m.id===type)m.progress=Math.min(m.target,(m.progress||0)+amount);}
+}
+function claimMission(idx){
+    const m=state.missions[idx];if(!m||m.claimed||m.progress<m.target)return;
+    m.claimed=true;state.coins+=m.reward;state.totalEarned+=m.reward;state.stars=(state.stars||0)+1;
+    addText(W/2,H/2,'+'+fmtN(m.reward)+' +1\u2B50','#ffd700',30);addConfetti(W/2,H/2,15);coinPulse=1;sndUpgrade();
+    if(state.missions.every(q=>q.claimed)){state.stars++;addText(W/2,H/2+40,'ALL DONE! +1 bonus \u2B50','#ff44ff',24);addConfetti(W/2,H/2,20);}
+    save();
+}
+function permCost(i){const u=PERM_UPGRADES[i],lv=state.permUpgrades[u.id]||0;return lv>=u.maxLv?Infinity:u.costs[lv];}
+function buyPerm(i){
+    const u=PERM_UPGRADES[i],cost=permCost(i);
+    if((state.stars||0)>=cost&&(state.permUpgrades[u.id]||0)<u.maxLv){
+        state.stars-=cost;state.permUpgrades[u.id]=(state.permUpgrades[u.id]||0)+1;
+        addText(W/2,H/2,'UPGRADED!','#ff44ff',28);addConfetti(W/2,H/2,12);sndUpgrade();save();
+    }
+}
+function permDescStr(id,lv){
+    if(id==='startCoins')return lv?'Start with '+fmtN(HEAD_START[lv]):'Coins after prestige';
+    if(id==='idleBoost')return lv?'+'+(lv*30)+'% idle coins':'Boost offline earnings';
+    if(id==='superCrit')return lv?'Crits do '+(3+lv)+'x':'Better crit multiplier';
+    if(id==='offlineMax')return lv?'Max '+(2+lv*4)+'h offline':'Extend offline time';
+    if(id==='missionBonus')return lv?'+'+(lv*25)+'% mission rewards':'Better mission rewards';
+    return'';
+}
+
+// ═══════════════════════════════════════════
 // SAVE / LOAD
 // ═══════════════════════════════════════════
 function sto(){return{
@@ -378,7 +496,9 @@ function save(){
         prestige:state.prestige,ballsDropped:state.ballsDropped,firstDrop:state.firstDrop,
         dailyStreak:state.dailyStreak,lastDaily:state.lastDaily,
         achieved:{...state.achieved},bestDrop:state.bestDrop,bestGolds:state.bestGolds,
-        boostEnd:state.boostEnd,lastSave:Date.now()
+        boostEnd:state.boostEnd,lastSave:Date.now(),
+        stars:state.stars,permUpgrades:{...state.permUpgrades},
+        missions:state.missions,missionDay:state.missionDay
     }));
 }
 function load(){
@@ -391,10 +511,12 @@ function load(){
         state.dailyStreak=d.dailyStreak||0;state.lastDaily=d.lastDaily||0;
         state.achieved=d.achieved||{};state.bestDrop=d.bestDrop||0;state.bestGolds=d.bestGolds||0;
         state.boostEnd=d.boostEnd||0;displayCoins=state.coins;
+        state.stars=d.stars||0;if(d.permUpgrades)Object.assign(state.permUpgrades,d.permUpgrades);
+        state.missions=d.missions||[];state.missionDay=d.missionDay||0;
         if(d.lastSave&&state.upgrades.autoDrop>0){
-            const el=Math.min((Date.now()-d.lastSave)/1000,7200);
+            const maxOff=(2+(state.permUpgrades.offlineMax||0)*4)*3600;const el=Math.min((Date.now()-d.lastSave)/1000,maxOff);
             if(el>60){const rate=1/AUTO_INTERVALS[state.upgrades.autoDrop],bc=MULTI_COUNTS[state.upgrades.multiBall],bv=VALUE_MULTS[state.upgrades.ballValue],pm=Math.pow(2,state.prestige);
-                const idle=Math.floor(rate*bc*bv*3*pm*el*0.5);
+                const idleMult=0.7+(state.permUpgrades.idleBoost||0)*0.3;const idle=Math.floor(rate*bc*bv*3*pm*el*idleMult);
                 if(idle>0){state.coins+=idle;state.totalEarned+=idle;setTimeout(()=>{addText(W/2,H/2-40,'Welcome back!','#ffffff',32);addText(W/2,H/2+10,'+'+fmtN(idle)+' idle coins','#ffd700',28);addConfetti(W/2,H/2,25);},500);}
             }
         }
@@ -419,6 +541,8 @@ function handleClick(gx,gy){
             else if(r.t==='tab'){shopTab=r.v;shopScroll=0;}
             else if(r.t==='mute'){muted=!muted;updateMusicMute();}
             else if(r.t==='reward')showRewardAd(()=>{state.boostEnd=Date.now()+60000;addText(W/2,H/2,'2x BOOST — 60s!','#ff4444',32);addConfetti(W/2,H/2,15);save();});
+            else if(r.t==='claimMis')claimMission(r.i);
+            else if(r.t==='perm')buyPerm(r.i);
             return;
         }
     }
@@ -457,7 +581,7 @@ function isHover(x,y,w,h){return hoverX>=x&&hoverX<=x+w&&hoverY>=y&&hoverY<=y+h;
 function render(){
     ctx.clearRect(0,0,W,H);ctx.save();
     if(shakeInt>0.3){shakeX=(Math.random()-0.5)*shakeInt;shakeY=(Math.random()-0.5)*shakeInt;ctx.translate(shakeX,shakeY);}
-    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a0a2e');bg.addColorStop(1,'#1a0a3e');ctx.fillStyle=bg;ctx.fillRect(-10,-10,W+20,H+20);
+    if(!bgGrad){bgGrad=ctx.createLinearGradient(0,0,0,H);bgGrad.addColorStop(0,'#0a0a2e');bgGrad.addColorStop(1,'#1a0a3e');}ctx.fillStyle=bgGrad;ctx.fillRect(-10,-10,W+20,H+20);
     for(const s of stars){ctx.globalAlpha=s.a+Math.sin(Date.now()*0.001+s.x)*0.08;ctx.fillStyle='#8ab4f8';ctx.beginPath();ctx.arc(s.x,s.y,s.sz,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
     renderBoard();renderBalls();renderParticles();renderRings();renderFireworks();renderTexts();ctx.restore();
     renderUI();renderNotifs();
@@ -473,10 +597,9 @@ function renderBoard(){
     ctx.fillStyle='rgba(200,230,255,0.6)';ctx.font=`${14*P|0}px Arial,sans-serif`;ctx.textAlign='center';ctx.fillText('\u25BC TAP TO DROP \u25BC',BOARD_CX,93);
     if(hoverX>=BOARD_L&&hoverX<=BOARD_R&&hoverY>=55&&hoverY<=DROP_Y+35){ctx.beginPath();ctx.arc(hoverX,DROP_Y,BALL_SIZES[state.upgrades.ballSize]+1,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.stroke();}
     for(const p of pegs){
-        const as=1+p.hit*0.35,r=p.r*as;
-        if(p.golden){ctx.beginPath();ctx.arc(p.x,p.y,r+6,0,Math.PI*2);ctx.fillStyle=`rgba(255,215,0,${0.1+p.hit*0.35})`;ctx.fill();const gg=ctx.createRadialGradient(p.x-2,p.y-2,0,p.x,p.y,r);gg.addColorStop(0,'#fff8c4');gg.addColorStop(0.5,'#ffd700');gg.addColorStop(1,'#b8860b');ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fillStyle=gg;ctx.fill();ctx.strokeStyle='#ffeb3b';ctx.lineWidth=1;ctx.stroke();}
-        else{const pg=ctx.createRadialGradient(p.x-2,p.y-2,0,p.x,p.y,r);const br=0.6+p.hit*0.4;pg.addColorStop(0,`rgba(${Math.round(140*br)},${Math.round(220*br)},${Math.round(255*br)},1)`);pg.addColorStop(1,`rgba(${Math.round(50*br)},${Math.round(150*br)},${Math.round(220*br)},1)`);ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fillStyle=pg;ctx.fill();}
-        ctx.beginPath();ctx.arc(p.x-r*0.25,p.y-r*0.25,r*0.3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fill();
+        const as=1+p.hit*0.35;
+        if(p.golden){const sw=pegGold.width*as,sh=pegGold.height*as;if(p.hit>0.01){ctx.globalAlpha=0.1+p.hit*0.35;ctx.drawImage(pegGold,p.x-sw/2,p.y-sh/2,sw,sh);ctx.globalAlpha=1;}ctx.drawImage(pegGold,p.x-sw/2,p.y-sh/2,sw,sh);}
+        else{ctx.globalAlpha=0.6+p.hit*0.4;const sw=pegNorm.width*as,sh=pegNorm.height*as;ctx.drawImage(pegNorm,p.x-sw/2,p.y-sh/2,sw,sh);ctx.globalAlpha=1;}
         if(p.hit>0){p.hit*=0.9;if(p.hit<0.01)p.hit=0;}
     }
     for(const bk of buckets){
@@ -492,13 +615,14 @@ function renderBoard(){
 }
 
 function renderBalls(){
+    const many=balls.length>60;
     for(const ball of balls){const gc=ball.golds>0,br=ball.r;
-        for(let t=0;t<ball.trail.length;t++){ctx.globalAlpha=(1-t/ball.trail.length)*0.3;ctx.beginPath();ctx.arc(ball.trail[t].x,ball.trail[t].y,br*(1-t/ball.trail.length*0.5),0,Math.PI*2);ctx.fillStyle=gc?'#ffd700':'#ffffff';ctx.fill();}ctx.globalAlpha=1;
-        ctx.beginPath();ctx.arc(ball.x,ball.y,br+3,0,Math.PI*2);ctx.fillStyle=gc?'rgba(255,215,0,0.2)':'rgba(79,195,247,0.15)';ctx.fill();
-        const bg=ctx.createRadialGradient(ball.x-1,ball.y-2,0,ball.x,ball.y,br);bg.addColorStop(0,'#fff');bg.addColorStop(1,gc?'#daa520':'#b0d4f1');ctx.beginPath();ctx.arc(ball.x,ball.y,br,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
+        if(!many){for(let t=0;t<ball.trail.length;t++){ctx.globalAlpha=(1-t/ball.trail.length)*0.3;ctx.beginPath();ctx.arc(ball.trail[t].x,ball.trail[t].y,br*(1-t/ball.trail.length*0.5),0,Math.PI*2);ctx.fillStyle=gc?'#ffd700':'#ffffff';ctx.fill();}ctx.globalAlpha=1;}
+        else if(ball.trail.length>0){ctx.globalAlpha=0.2;ctx.beginPath();ctx.arc(ball.trail[0].x,ball.trail[0].y,br*0.7,0,Math.PI*2);ctx.fillStyle=gc?'#ffd700':'#ffffff';ctx.fill();ctx.globalAlpha=1;}
+        const spr=getBallSpr(br,gc),ssz=spr.width;ctx.drawImage(spr,ball.x-ssz/2,ball.y-ssz/2,ssz,ssz);
     }
 }
-function renderParticles(){for(const p of particles){ctx.globalAlpha=p.life/p.ml;ctx.beginPath();ctx.arc(p.x,p.y,p.sz*(p.life/p.ml),0,Math.PI*2);ctx.fillStyle=p.color;ctx.fill();}ctx.globalAlpha=1;}
+function renderParticles(){for(const p of particles){ctx.globalAlpha=p.life/p.ml;ctx.fillStyle=p.color;const s=p.sz*(p.life/p.ml);ctx.fillRect(p.x-s,p.y-s,s*2,s*2);}ctx.globalAlpha=1;}
 function renderRings(){for(const r of rings){const a=(r.life/r.ml)*0.7;ctx.globalAlpha=a;ctx.strokeStyle=r.color;ctx.lineWidth=r.lw*(r.life/r.ml);ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=a*0.3;ctx.lineWidth=r.lw*(r.life/r.ml)*2.5;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke();}ctx.globalAlpha=1;}
 function renderFireworks(){for(const f of fireworks){for(let t=0;t<f.trail.length;t++){const tr=f.trail[t];ctx.globalAlpha=(1-t/f.trail.length)*0.5;ctx.beginPath();ctx.arc(tr.x,tr.y,2,0,Math.PI*2);ctx.fillStyle=f.color;ctx.fill();}ctx.globalAlpha=1;ctx.shadowColor=f.color;ctx.shadowBlur=15;ctx.beginPath();ctx.arc(f.x,f.y,4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.beginPath();ctx.arc(f.x,f.y,6,0,Math.PI*2);ctx.fillStyle=f.color+'80';ctx.fill();ctx.shadowBlur=0;}ctx.globalAlpha=1;}
 function renderTexts(){for(const t of texts){ctx.globalAlpha=t.life/t.ml;ctx.font=`bold ${t.sz}px Arial,sans-serif`;ctx.textAlign='center';ctx.strokeStyle='rgba(0,0,0,0.7)';ctx.lineWidth=3;ctx.strokeText(t.txt,t.x,t.y);ctx.fillStyle=t.col;ctx.fillText(t.txt,t.x,t.y);}ctx.globalAlpha=1;}
@@ -526,8 +650,9 @@ function renderUI(){
     ctx.fillStyle='rgba(0,0,0,0.4)';rrect(SHOP_X-10,shopTop,SHOP_W+20,H-shopTop-15,15);ctx.fill();
 
     // Tabs
-    const tabW=SHOP_W/2,tabY=shopTop+5,tabH=28*P|0;
-    [{t:'upg',label:'UPGRADES'},{t:'ach',label:'ACHIEVEMENTS'}].forEach((tab,i)=>{
+    const TABS=[{t:'upg',label:'SHOP'},{t:'mis',label:'DAILY'},{t:'perk',label:'PERKS'},{t:'ach',label:'FEATS'}];
+    const tabW=SHOP_W/TABS.length,tabY=shopTop+5,tabH=28*P|0;
+    TABS.forEach((tab,i)=>{
         const tx=SHOP_X+i*tabW,active=shopTab===tab.t,hov=isHover(tx,tabY,tabW,tabH);
         ctx.fillStyle=active?'rgba(79,195,247,0.2)':hov?'rgba(255,255,255,0.08)':'transparent';
         ctx.fillRect(tx,tabY,tabW,tabH);
@@ -538,6 +663,8 @@ function renderUI(){
     });
 
     if(shopTab==='upg')renderUpgTab();
+    else if(shopTab==='mis')renderMissionTab();
+    else if(shopTab==='perk')renderPerksTab();
     else renderAchTab();
 
     // Stats
@@ -583,7 +710,7 @@ function renderUpgTab(){
     ctx.strokeStyle=cp?`rgba(255,215,0,${phov?0.6:0.35})`:'rgba(51,51,80,0.3)';ctx.lineWidth=phov&&cp?2:1;rrect(SHOP_X,uy,SHOP_W,prH,8);ctx.stroke();
     ctx.fillStyle=cp?'#ffd700':'#888';ctx.font=`bold ${15*P|0}px Arial,sans-serif`;ctx.textAlign='left';ctx.fillText('PRESTIGE',SHOP_X+15,uy+pr1);
     ctx.fillStyle='#aaa';ctx.font=`${12*P|0}px Arial,sans-serif`;ctx.fillText('Current: '+pm2+'x multiplier',SHOP_X+15,uy+pr2);
-    if(cp){ctx.fillStyle='#ffd700';ctx.fillText('Reset for '+(pm2*2)+'x! Tap to prestige',SHOP_X+15,uy+pr3);}
+    if(cp){ctx.fillStyle='#ffd700';ctx.fillText('Prestige for '+(pm2*2)+'x + '+(state.prestige+1)+'\u2B50',SHOP_X+15,uy+pr3);}
     else{ctx.fillStyle='#666';ctx.fillText('Need '+fmtN(thr)+' total ('+fmtN(state.totalEarned)+'/'+fmtN(thr)+')',SHOP_X+15,uy+pr3);
         const pp=Math.min(state.totalEarned/thr,1);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(SHOP_X+10,uy+pr4,SHOP_W-20,3);
         if(pp>0){ctx.fillStyle='#ffd700';ctx.fillRect(SHOP_X+10,uy+pr4,(SHOP_W-20)*pp,3);}
@@ -651,6 +778,85 @@ function renderAchTab(){
     if(maxS>0){const sbH=Math.max(20,clipH*clipH/contentH);const sbY=clipTop+(maxS>0?shopScroll/maxS*(clipH-sbH):0);ctx.fillStyle='rgba(255,255,255,0.12)';rrect(SHOP_X+SHOP_W+6,sbY,3,sbH,2);ctx.fill();}
 }
 
+function renderMissionTab(){
+    let my=shopTop+(isPortrait?48:41);
+    const now=Date.now(),nextRefresh=(getMissionDay()+1)*86400000;
+    const rem=Math.max(0,Math.floor((nextRefresh-now)/1000));
+    const hh=Math.floor(rem/3600),mm=Math.floor((rem%3600)/60);
+    ctx.fillStyle='#888';ctx.font=`${12*P|0}px Arial,sans-serif`;ctx.textAlign='center';
+    ctx.fillText('Refreshes in '+hh+'h '+mm+'m',SHOP_X+SHOP_W/2,my+8);
+    ctx.fillStyle='#ff44ff';ctx.font=`bold ${13*P|0}px Arial,sans-serif`;
+    ctx.fillText('\u2B50 '+(state.stars||0)+' Stars',SHOP_X+SHOP_W/2,my+26);
+    my+=isPortrait?42:36;
+    if(!state.missions||state.missions.length===0){
+        ctx.fillStyle='#888';ctx.font=`${14*P|0}px Arial,sans-serif`;ctx.textAlign='center';
+        ctx.fillText('No missions yet \u2014 drop a ball!',SHOP_X+SHOP_W/2,my+30);return;
+    }
+    const mh=isPortrait?120:95;
+    for(let i=0;i<state.missions.length;i++){
+        const m=state.missions[i],done=m.progress>=m.target,bx=SHOP_X,by=my,bw=SHOP_W;
+        ctx.fillStyle=m.claimed?'rgba(76,175,80,0.12)':done?'rgba(255,215,0,0.15)':'rgba(50,50,80,0.25)';
+        rrect(bx,by,bw,mh,8);ctx.fill();
+        ctx.strokeStyle=m.claimed?'rgba(76,175,80,0.3)':done?'rgba(255,215,0,0.5)':'rgba(51,51,80,0.3)';
+        ctx.lineWidth=done&&!m.claimed?2:1;rrect(bx,by,bw,mh,8);ctx.stroke();
+        ctx.fillStyle=m.claimed?'#4caf50':'#fff';ctx.font=`bold ${14*P|0}px Arial,sans-serif`;ctx.textAlign='left';
+        ctx.fillText(m.name,bx+15,by+(isPortrait?24:20));
+        ctx.fillStyle='#aaa';ctx.font=`${12*P|0}px Arial,sans-serif`;
+        ctx.fillText(missionDesc(m),bx+15,by+(isPortrait?44:38));
+        const prog=Math.min(1,(m.progress||0)/m.target);
+        ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(bx+15,by+(isPortrait?54:48),bw-30,8);
+        if(prog>0){ctx.fillStyle=m.claimed?'#4caf50':done?'#ffd700':'#4fc3f7';ctx.fillRect(bx+15,by+(isPortrait?54:48),(bw-30)*prog,8);}
+        ctx.fillStyle='#ccc';ctx.font=`${11*P|0}px Arial,sans-serif`;
+        ctx.fillText(Math.min(m.progress||0,m.target)+'/'+m.target,bx+15,by+(isPortrait?78:68));
+        ctx.fillStyle=m.claimed?'#4caf50':'#ffd700';ctx.font=`bold ${12*P|0}px Arial,sans-serif`;ctx.textAlign='right';
+        ctx.fillText(m.claimed?'Claimed':'+'+fmtN(m.reward)+' +1\u2B50',bx+bw-15,by+(isPortrait?24:20));
+        if(done&&!m.claimed){
+            const cbw=isPortrait?120:90,cbh=isPortrait?34:28,cbx=bx+bw-cbw-10,cby=by+mh-(isPortrait?42:34);
+            const chov=isHover(cbx,cby,cbw,cbh);
+            ctx.fillStyle=chov?'rgba(76,175,80,0.9)':'rgba(76,175,80,0.7)';rrect(cbx,cby,cbw,cbh,6);ctx.fill();
+            ctx.fillStyle='#fff';ctx.font=`bold ${13*P|0}px Arial,sans-serif`;ctx.textAlign='center';ctx.fillText('CLAIM',cbx+cbw/2,cby+cbh*0.7|0);
+            btnRects.push({x:cbx,y:cby,w:cbw,h:cbh,t:'claimMis',i});
+        }
+        my+=mh+6;
+    }
+    if(state.missions.every(q=>q.claimed)){
+        ctx.fillStyle='#ff44ff';ctx.font=`bold ${14*P|0}px Arial,sans-serif`;ctx.textAlign='center';
+        ctx.fillText('All done! Come back tomorrow!',SHOP_X+SHOP_W/2,my+20);
+    }
+}
+
+function renderPerksTab(){
+    let py=shopTop+(isPortrait?48:41);
+    ctx.fillStyle='#ff44ff';ctx.font=`bold ${18*P|0}px Arial,sans-serif`;ctx.textAlign='center';
+    ctx.fillText('\u2B50 '+(state.stars||0)+' Stars',SHOP_X+SHOP_W/2,py+14);
+    ctx.fillStyle='#888';ctx.font=`${11*P|0}px Arial,sans-serif`;
+    ctx.fillText('Earn stars from missions & prestige',SHOP_X+SHOP_W/2,py+32);
+    py+=isPortrait?48:42;
+    const ph=isPortrait?82:68;
+    for(let i=0;i<PERM_UPGRADES.length;i++){
+        const u=PERM_UPGRADES[i],lv=state.permUpgrades[u.id]||0,maxed=lv>=u.maxLv;
+        const cost=maxed?Infinity:u.costs[lv],afford=(state.stars||0)>=cost;
+        const bx=SHOP_X,by=py,bw=SHOP_W,hov=isHover(bx,by,bw,ph);
+        ctx.fillStyle=maxed?`rgba(76,175,80,${hov?0.25:0.15})`:afford?`rgba(180,80,220,${hov?0.25:0.15})`:`rgba(50,50,80,${hov?0.4:0.3})`;
+        rrect(bx,by,bw,ph,8);ctx.fill();
+        ctx.strokeStyle=maxed?'rgba(76,175,80,0.4)':afford?`rgba(180,80,220,${hov?0.6:0.35})`:'rgba(51,51,80,0.3)';
+        ctx.lineWidth=hov&&afford?2:1;rrect(bx,by,bw,ph,8);ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font=`bold ${14*P|0}px Arial,sans-serif`;ctx.textAlign='left';
+        ctx.fillText(u.name,bx+15,by+(isPortrait?22:18));
+        ctx.fillStyle='#ce93d8';ctx.font=`${12*P|0}px Arial,sans-serif`;
+        ctx.fillText('Lv.'+lv+(maxed?' MAX':'/'+u.maxLv),bx+15,by+(isPortrait?40:33));
+        ctx.fillStyle='#aaa';ctx.font=`${11*P|0}px Arial,sans-serif`;
+        ctx.fillText(permDescStr(u.id,lv),bx+15,by+(isPortrait?56:46));
+        if(!maxed){
+            ctx.fillStyle='#8f8';ctx.fillText('\u2192 '+permDescStr(u.id,lv+1),bx+15,by+(isPortrait?70:58));
+            ctx.fillStyle=afford?'#ff44ff':'#666';ctx.font=`bold ${14*P|0}px Arial,sans-serif`;ctx.textAlign='right';
+            ctx.fillText(cost+' \u2B50',bx+bw-15,by+(isPortrait?30:24));
+        }
+        btnRects.push({x:bx,y:by,w:bw,h:ph,t:'perm',i});
+        py+=ph+4;
+    }
+}
+
 function renderNotifs(){
     const nw=isPortrait?560:440,nh=isPortrait?42:32;
     for(let i=0;i<notifs.length;i++){
@@ -709,7 +915,7 @@ function update(dt){
     // Notif decay
     for(let i=notifs.length-1;i>=0;i--){notifs[i].timer-=dt;if(notifs[i].timer<=0)notifs.splice(i,1);}
     // Achievement check
-    achTimer+=dt;if(achTimer>=1){achTimer=0;checkAchievements();}
+    achTimer+=dt;if(achTimer>=1){achTimer=0;checkAchievements();if(getMissionDay()!==state.missionDay)generateMissions();}
 
     if(state.upgrades.autoDrop>0){autoTimer+=dt;if(autoTimer>=AUTO_INTERVALS[state.upgrades.autoDrop]){autoTimer=0;dropBalls(BOARD_L+40+Math.random()*(BOARD_R-BOARD_L-80));}}
     updatePhysics(dt);
@@ -734,7 +940,7 @@ async function init(){
     requestAnimationFrame(loadLoop);
     loadMsg='Connecting to CrazyGames...';loadTgt=0.25;await initSDK();
     loadMsg='Building game board...';loadTgt=0.50;await delay(300);createBoard();
-    loadMsg='Loading save data...';loadTgt=0.70;await delay(250);load();updateGolden();
+    loadMsg='Loading save data...';loadTgt=0.70;await delay(250);load();updateGolden();generateMissions();
     loadMsg='Preparing audio...';loadTgt=0.90;await delay(200);
     loadMsg='Ready!';loadTgt=1.0;await delay(400);
     loaded=true;sdkCall(()=>sdk.game.sdkGameLoadingStop());
