@@ -366,11 +366,11 @@ function scoreBall(ball,bi){
     if(score>state.bestDrop)state.bestDrop=score;
     if(ball.golds>state.bestGolds)state.bestGolds=ball.golds;
     const cx=bk.x+bk.w/2;
-    if(bmult>=10){addConfetti(cx,BUCKET_Y,efxScale(30));shake(12);coinPulse=1;sndScore(true);happytime();addRing(cx,BUCKET_Y,bk.color);addRing(cx,BUCKET_Y,'#fff');for(let f=0;f<efxScale(3);f++)addFirework(cx+(Math.random()-0.5)*100,BUCKET_Y);addFlash('#ffd700',0.3);}
+    if(bmult>=10){addConfetti(cx,BUCKET_Y,efxScale(30));shake(12);coinPulse=1;sndScore(true);happytime();addRing(cx,BUCKET_Y,bk.color);addRing(cx,BUCKET_Y,'#fff');for(let f=0;f<efxScale(3);f++)addFirework(cx+(Math.random()-0.5)*100,BUCKET_Y);}
     else if(bmult>=5){addConfetti(cx,BUCKET_Y,efxScale(14));shake(6);coinPulse=Math.max(coinPulse,0.7);sndScore(true);addRing(cx,BUCKET_Y,bk.color);addFirework(cx,BUCKET_Y);}
     else{addParts(cx,BUCKET_Y,efxScale(6),bk.color);sndScore(false);}
-    if(score>=1000){for(let f=0;f<efxScale(2);f++)addFirework(BOARD_L+Math.random()*(BOARD_R-BOARD_L),BUCKET_Y);addFlash('#fff',0.2);}
-    if(isCrit){addConfetti(cx,BUCKET_Y-20,efxScale(12));shake(6);addRing(cx,BUCKET_Y,'#ff4444');addFlash('#ff4444',0.2);}
+    if(score>=1000){for(let f=0;f<efxScale(2);f++)addFirework(BOARD_L+Math.random()*(BOARD_R-BOARD_L),BUCKET_Y);}
+    if(isCrit){addConfetti(cx,BUCKET_Y-20,efxScale(12));shake(6);addRing(cx,BUCKET_Y,'#ff4444');}
     addText(cx,BUCKET_Y-10,(isCrit?'CRIT! ':'')+'+'+(boostOn>1?'x2 ':'')+fmtN(score),isCrit?'#ff4444':bk.color,isCrit?32:bmult>=10?36:bmult>=5?28:18);
 }
 
@@ -390,7 +390,7 @@ function doPrestige(){
     state.prestige++;state.coins=HEAD_START[state.permUpgrades.startCoins||0];state.totalEarned=0;
     state.upgrades={autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0,extraBalls:0};
     balls=[];particles=[];texts=[];createBoard();save();
-    addText(W/2,H/2,'PRESTIGE! x'+Math.pow(2,state.prestige),'#ffd700',48);addText(W/2,H/2+50,'+'+earnedStars+' \u2B50','#ff44ff',32);addConfetti(W/2,H/2,50);shake(15);sndPrestige();happytime();for(let f=0;f<6;f++)addFirework(W/2+(Math.random()-0.5)*300,H/2+Math.random()*100);addRing(W/2,H/2,'#ffd700');addRing(W/2,H/2,'#fff');addFlash('#ffd700',0.45);showMidAd();
+    addText(W/2,H/2,'PRESTIGE! x'+Math.pow(2,state.prestige),'#ffd700',48);addText(W/2,H/2+50,'+'+earnedStars+' \u2B50','#ff44ff',32);addConfetti(W/2,H/2,50);shake(15);sndPrestige();happytime();for(let f=0;f<6;f++)addFirework(W/2+(Math.random()-0.5)*300,H/2+Math.random()*100);addRing(W/2,H/2,'#ffd700');addRing(W/2,H/2,'#fff');showMidAd();
 }
 
 // ═══════════════════════════════════════════
@@ -593,7 +593,6 @@ function render(){
     renderUI();renderNotifs();
     if(!state.firstDrop&&!overlay)renderOnboard();
     if(overlay)renderOverlay();
-    if(screenFlash>0.01){ctx.globalAlpha=screenFlash;ctx.fillStyle=flashColor;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
 }
 
 function renderBoard(){
@@ -929,7 +928,6 @@ function update(dt){
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1);}
     for(let i=fireworks.length-1;i>=0;i--){const f=fireworks[i];f.trail.unshift({x:f.x,y:f.y});if(f.trail.length>7)f.trail.pop();f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=120*dt;f.timer-=dt;if(f.timer<=0){addConfetti(f.x,f.y,18);addRing(f.x,f.y,f.color);shake(3);fireworks.splice(i,1);}}
     for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.r+=(r.maxR-r.r)*6*dt;r.life-=dt;if(r.life<=0)rings.splice(i,1);}
-    if(screenFlash>0){screenFlash*=Math.pow(0.08,dt);if(screenFlash<0.01)screenFlash=0;}
     for(let i=texts.length-1;i>=0;i--){const t=texts[i];t.y+=t.vy*dt;t.life-=dt;if(t.life<=0)texts.splice(i,1);}
     saveTimer+=dt;if(saveTimer>=30){saveTimer=0;save();}
 }
