@@ -72,7 +72,8 @@ const UPGRADES = [
     {id:'luckyBounce',name:'Lucky Bounce',maxLv:5,base:400,mult:3.5,desc:l=>l===0?'Boost buckets':'Buckets +'+l},
     {id:'magnet',name:'Magnet',maxLv:5,base:200,mult:3.0,desc:l=>l===0?'Pull to center':'Force '+Math.round(MAGNET_K[l]*100)+'%'},
     {id:'ballSize',name:'Ball Size',maxLv:5,base:300,mult:3.0,desc:l=>'Radius '+BALL_SIZES[l]+'px'},
-    {id:'critHit',name:'Critical Hit',maxLv:6,base:500,mult:3.2,desc:l=>l===0?'Chance for 3x':'Crit '+Math.round(CRIT_CHANCES[l]*100)+'%'}
+    {id:'critHit',name:'Critical Hit',maxLv:6,base:500,mult:3.2,desc:l=>l===0?'Chance for 3x':'Crit '+Math.round(CRIT_CHANCES[l]*100)+'%'},
+    {id:'extraBalls',name:'Extra Balls',maxLv:10,base:30,mult:2.2,desc:l=>'+'+l+' ball capacity'}
 ];
 
 const DAILY_REWARDS = [100,200,500,1000,2000,5000,10000];
@@ -192,7 +193,7 @@ function delay(ms){return new Promise(r=>setTimeout(r,ms));}
 // ═══════════════════════════════════════════
 let state = {
     coins:0,totalEarned:0,
-    upgrades:{autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0},
+    upgrades:{autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0,extraBalls:0},
     prestige:0,ballsDropped:0,firstDrop:false,
     dailyStreak:0,lastDaily:0,
     achieved:{},bestDrop:0,bestGolds:0,
@@ -317,7 +318,7 @@ function efxScale(n){return Math.max(1,n*Math.max(0.2,1-balls.length*0.012)|0);}
 // BALLS, PARTICLES, TEXTS
 // ═══════════════════════════════════════════
 let balls=[],particles=[],texts=[];
-function ballCap(){return BALL_CAPS[state.upgrades.multiBall];}
+function ballCap(){return BALL_CAPS[state.upgrades.multiBall]+state.upgrades.extraBalls;}
 function spawnBall(x){if(balls.length>=ballCap())return;balls.push({x,y:DROP_Y,vx:(Math.random()-0.5)*20,vy:0,r:BALL_SIZES[state.upgrades.ballSize],trail:[],tt:0,golds:0,life:15});}
 function dropBalls(x){
     const cnt=MULTI_COUNTS[state.upgrades.multiBall];
@@ -387,7 +388,7 @@ function doPrestige(){
     if(!canPrest())return;
     const earnedStars=state.prestige+1;state.stars=(state.stars||0)+earnedStars;
     state.prestige++;state.coins=HEAD_START[state.permUpgrades.startCoins||0];state.totalEarned=0;
-    state.upgrades={autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0};
+    state.upgrades={autoDrop:0,multiBall:0,ballValue:0,goldenPegs:0,luckyBounce:0,magnet:0,ballSize:0,critHit:0,extraBalls:0};
     balls=[];particles=[];texts=[];createBoard();save();
     addText(W/2,H/2,'PRESTIGE! x'+Math.pow(2,state.prestige),'#ffd700',48);addText(W/2,H/2+50,'+'+earnedStars+' \u2B50','#ff44ff',32);addConfetti(W/2,H/2,50);shake(15);sndPrestige();happytime();for(let f=0;f<6;f++)addFirework(W/2+(Math.random()-0.5)*300,H/2+Math.random()*100);addRing(W/2,H/2,'#ffd700');addRing(W/2,H/2,'#fff');addFlash('#ffd700',0.45);showMidAd();
 }
