@@ -591,8 +591,8 @@ function render(){
     for(const s of stars){ctx.globalAlpha=s.a+Math.sin(Date.now()*0.001+s.x)*0.08;ctx.fillStyle='#8ab4f8';ctx.beginPath();ctx.arc(s.x,s.y,s.sz,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
     renderBoard();renderBalls();renderParticles();renderRings();renderFireworks();renderTexts();ctx.restore();
     renderUI();renderNotifs();
-    if(!state.firstDrop&&!overlay)renderOnboard();
     if(overlay)renderOverlay();
+    if(!state.firstDrop)renderOnboard();
 }
 
 function renderBoard(){
